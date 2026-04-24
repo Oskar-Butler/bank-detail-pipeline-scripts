@@ -18,11 +18,11 @@ On every payment-run week, a finance manager has to pay hundreds of supplier inv
 Today that means:
 
 - opening every invoice PDF one at a time
-- cross-referencing account number, sort code, IBAN, and amount to the finacial systems records
+- cross-referencing the account number, sort code, and IBAN printed on the invoice against the bank details already held for that supplier in the financial system, confirming they match before payment goes out
 - cross-referencing the job number on the invoice against an internal project list, making sure we have enough funds on that job to pay the supplier
-- then finally, uploading the payments file to the bank and hoping nothing was missed
+- then finally, releasing the pre-generated BACS file to the bank and hoping nothing was missed
 
-It eats hours every week, and the blast radius of a mistake is a mis-paid or double-paid supplier.
+There is no manual keying into the bank — the BACS file is produced by the financial system — but the human cost sits in the *verification* step above, and the blast radius of missing a mismatch is a payment sent to the wrong account.
 
 **The pipeline in this repo replaces the mechanical extraction and pre-flags anomalies, so the manager only reviews exceptions — not every invoice.**
 
