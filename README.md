@@ -13,15 +13,14 @@
 
 ## The problem
 
-On every payment-run week, a finance manager has to pay dozens of supplier invoices.
+On every payment-run week, a finance manager has to pay hundreds of supplier invoices.
 
 Today that means:
 
 - opening every invoice PDF one at a time
-- copying the account number, sort code, IBAN, and amount by hand into the bank's upload template
-- cross-referencing the job number on the invoice against an internal project list
-- checking, by memory, whether this supplier already billed for this invoice recently
-- then finally, uploading the payments file to the bank and hoping nothing was fat-fingered
+- cross-referencing account number, sort code, IBAN, and amount to the finacial systems records
+- cross-referencing the job number on the invoice against an internal project list, making sure we have enough funds on that job to pay the supplier
+- then finally, uploading the payments file to the bank and hoping nothing was missed
 
 It eats hours every week, and the blast radius of a mistake is a mis-paid or double-paid supplier.
 
@@ -41,7 +40,6 @@ flowchart LR
     F --> G[Dataform<br/>silver]:::prod
     G -.-> H[Dataform<br/>gold]:::design
     H -.-> I[Google Sheets<br/>Approval UI]:::design
-    I -.-> J[Bank upload CSV]:::design
 
     classDef prod   fill:#b7e1cd,stroke:#137333,stroke-width:1px,color:#111
     classDef design fill:#fff,stroke:#5f6368,stroke-width:1px,color:#5f6368,stroke-dasharray:5 5
