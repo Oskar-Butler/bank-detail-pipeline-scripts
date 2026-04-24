@@ -1,0 +1,85 @@
+-- ═══════════════════════════════════════════════════════════════
+--  Silver Layer: Cleaned and typed OCR invoice results
+-- ═══════════════════════════════════════════════════════════════
+--  Reads from the bronze staging table, parses dates from
+--  DD/MM/YYYY format, strips apostrophe prefixes from numeric
+--  banking/invoice fields, and casts them to NUMERIC.
+--  Incremental: merges on SUPPLIER_CODE + INVOICE_NUMBER + OFFICE_CODE.
+--  Adds a loaded_at audit timestamp.
+-- ═══════════════════════════════════════════════════════════════
+
+config {
+  type: "incremental",
+  database: dataform.projectConfig.defaultDatabase,
+  schema: "silver",
+  name: "silver_te_ocr_results",
+  description: "Cleaned and typed OCR invoice results. Incremental merge on SUPPLIER_CODE + INVOICE_NUMBER + OFFICE_CODE.",
+  tags: ["ocr_pipeline", "silver"],
+  dependencies: ["bronze_ocr_raw"],
+  uniqueKey: ["LINK"]
+}
+
+WITH deduped AS (
+  SELECT *
+  FROM ${ref("bronze_ocr_raw")}
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY LINK
+    ORDER BY
+      CASE WHEN COALESCE(NULLIF(TRIM(INVOICE_NUMBER), ''), NULLIF(TRIM(TOTAL_AMOUNT), '')) IS NOT NULL
+           THEN 0 ELSE 1 END,
+      TOTAL_AMOUNT DESC NULLS LAST
+  ) = 1
+)
+
+SELECT
+  -- Passthrough fields (from input spreadsheet)
+  OFFICE_CODE,
+  OFFICE_NAME,
+  MASTER_SUPPLIER_CODE,
+  MASTER_SUPPLIER_NAME,
+  SUPPLIER_CODE,
+  SUPPLIER_NAME,
+  REGEXP_REPLACE(INVOICE_NO_, r"^'", '') AS INVOICE_NO_,
+  EXPECTED_JOB_NUMBER,
+  LINK,
+
+  -- Banking fields (kept as STRING — leading zeros preserved, apostrophe stripped)
+  ACCOUNT_NAME,
+  BANK_NAME,
+  REGEXP_REPLACE(ACCOUNT_NUMBER,  r"^'", '') AS ACCOUNT_NUMBER,
+  REGEXP_REPLACE(SORT_CODE,       r"^'", '') AS SORT_CODE,
+  REGEXP_REPLACE(ROUTING_NUMBER,  r"^'", '') AS ROUTING_NUMBER,
+  REGEXP_REPLACE(TRANSIT_NUMBER,  r"^'", '') AS TRANSIT_NUMBER,
+  BRANCH_CODE,
+  SWIFT_BIC,
+  IBAN,
+
+  -- Invoice identifiers
+  REGEXP_REPLACE(INVOICE_NUMBER, r"^'", '') AS INVOICE_NUMBER,
+
+  -- Dates: parse DD/MM/YYYY → DATE
+  SAFE.PARSE_DATE('%d/%m/%Y', INVOICE_DATE) AS INVOICE_DATE,
+  SAFE.PARSE_DATE('%d/%m/%Y', DUE_DATE)     AS DUE_DATE,
+
+  CURRENCY,
+
+  -- Financial amounts: strip leading apostrophe, cast to NUMERIC
+  SAFE_CAST(REGEXP_REPLACE(SUBTOTAL,     r"^'", '') AS NUMERIC) AS SUBTOTAL,
+  SAFE_CAST(REGEXP_REPLACE(TAX_AMOUNT,   r"^'", '') AS NUMERIC) AS TAX_AMOUNT,
+  SAFE_CAST(REGEXP_REPLACE(TAX_RATE,     r"^'", '') AS NUMERIC) AS TAX_RATE,
+  SAFE_CAST(REGEXP_REPLACE(TOTAL_AMOUNT, r"^'", '') AS NUMERIC) AS TOTAL_AMOUNT,
+
+  -- Remaining invoice/vendor fields
+  DOCUMENT_TYPE,
+  CREDIT_NOTE_REFERENCE,
+  PAYMENT_TERMS,
+  JOB_NUMBER,
+  ACCOUNTING_DESCRIPTION,
+  VENDOR_NAME,
+  VENDOR_TAX_NUMBER,
+  VENDOR_ADDRESS,
+
+  -- Audit column
+  CURRENT_TIMESTAMP() AS loaded_at
+
+FROM deduped

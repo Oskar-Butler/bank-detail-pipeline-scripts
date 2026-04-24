@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment files — never commit real values
+.env
+.env.*
+!.env.example
+
+# Credentials / keys — never commit
+*.key
+*.pem
+*-credentials.json
+service-account*.json
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Node / Apps Script local tooling
+node_modules/
+.clasp.json
+
+# Dataform
+.df-credentials.json
+.dataform/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp

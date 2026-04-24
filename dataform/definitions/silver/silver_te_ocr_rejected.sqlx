@@ -1,0 +1,37 @@
+-- ═══════════════════════════════════════════════════════════════
+--  Silver Layer: Append-only rejected/failed OCR invoices
+-- ═══════════════════════════════════════════════════════════════
+--  Incrementally merges new rejections from bronze. Deduplicates
+--  on url + reason so the same file rejected for the same reason
+--  is only stored once (with loaded_at updated on re-occurrence).
+-- ═══════════════════════════════════════════════════════════════
+
+config {
+  type: "incremental",
+  database: dataform.projectConfig.defaultDatabase,
+  schema: "silver",
+  name: "silver_te_ocr_rejected",
+  description: "Append-only log of OCR rejections and extraction failures. Deduplicates on url + reason.",
+  tags: ["ocr_pipeline", "silver"],
+  dependencies: ["bronze_ocr_rejected"],
+  uniqueKey: ["url", "reason"]
+}
+
+WITH deduped AS (
+  SELECT *
+  FROM ${ref("bronze_ocr_rejected")}
+  WHERE url IS NOT NULL
+    AND TRIM(url) != ''
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY url, reason
+    ORDER BY SAFE_CAST(row AS INT64) NULLS LAST
+  ) = 1
+)
+
+SELECT
+  CAST(row AS INT64)  AS source_row,
+  url,
+  reason,
+  CURRENT_TIMESTAMP() AS loaded_at
+
+FROM deduped

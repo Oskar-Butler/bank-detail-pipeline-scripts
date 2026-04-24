@@ -1,0 +1,61 @@
+-- ═══════════════════════════════════════════════════════════════
+--  Bronze Layer: Load raw OCR export shards from GCS
+-- ═══════════════════════════════════════════════════════════════
+--  Reads only export_shard*.csv files (ignoring rejected CSVs)
+--  and loads them into the bronze staging table with all columns
+--  as STRING. This preserves apostrophe-prefixed banking fields
+--  and avoids load failures on empty numeric strings.
+-- ═══════════════════════════════════════════════════════════════
+
+config {
+  type: "operations",
+  hasOutput: true,
+  database: dataform.projectConfig.defaultDatabase,
+  schema: "bronze",
+  name: "bronze_ocr_raw",
+  description: "Load raw OCR export shards from GCS. All columns remain STRING to handle apostrophe-prefixed banking fields and empty numerics.",
+  tags: ["ocr_pipeline", "bronze"]
+}
+
+LOAD DATA OVERWRITE ${self()}
+(
+  OFFICE_CODE STRING,
+  OFFICE_NAME STRING,
+  MASTER_SUPPLIER_CODE STRING,
+  MASTER_SUPPLIER_NAME STRING,
+  SUPPLIER_CODE STRING,
+  SUPPLIER_NAME STRING,
+  INVOICE_NO_ STRING,
+  EXPECTED_JOB_NUMBER STRING,
+  LINK STRING,
+  ACCOUNT_NAME STRING,
+  BANK_NAME STRING,
+  ACCOUNT_NUMBER STRING,
+  SORT_CODE STRING,
+  ROUTING_NUMBER STRING,
+  TRANSIT_NUMBER STRING,
+  BRANCH_CODE STRING,
+  SWIFT_BIC STRING,
+  IBAN STRING,
+  INVOICE_NUMBER STRING,
+  INVOICE_DATE STRING,
+  DUE_DATE STRING,
+  CURRENCY STRING,
+  SUBTOTAL STRING,
+  TAX_AMOUNT STRING,
+  TAX_RATE STRING,
+  TOTAL_AMOUNT STRING,
+  DOCUMENT_TYPE STRING,
+  CREDIT_NOTE_REFERENCE STRING,
+  PAYMENT_TERMS STRING,
+  JOB_NUMBER STRING,
+  ACCOUNTING_DESCRIPTION STRING,
+  VENDOR_NAME STRING,
+  VENDOR_TAX_NUMBER STRING,
+  VENDOR_ADDRESS STRING
+)
+FROM FILES (
+  format = 'CSV',
+  uris   = ['gs://your-landing-bucket/ocr_output/export_shard*.csv'],
+  skip_leading_rows = 1
+);

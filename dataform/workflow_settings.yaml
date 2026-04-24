@@ -1,0 +1,5 @@
+defaultProject: your-gcp-project
+defaultLocation: europe-west2
+defaultDataset: silver
+defaultAssertionDataset: dataform_assertions
+dataformCoreVersion: 3.0.0

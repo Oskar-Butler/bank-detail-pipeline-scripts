@@ -1,0 +1,62 @@
+-- ═══════════════════════════════════════════════════════════════
+--  Bronze Layer: Load rejected files and extraction failures
+-- ═══════════════════════════════════════════════════════════════
+--  Loads both rejected_files_shard*.csv and extraction_failures_shard*.csv
+--  into a single staging table. The two CSV types share the same
+--  structure (row, url, reason/error) and are unified here.
+--  Tolerates zero-match globs: if either CSV set is absent, the
+--  load is skipped without failing the pipeline.
+-- ═══════════════════════════════════════════════════════════════
+
+config {
+  type: "operations",
+  hasOutput: true,
+  database: dataform.projectConfig.defaultDatabase,
+  schema: "bronze",
+  name: "bronze_ocr_rejected",
+  description: "Load OCR rejection and extraction failure CSVs from GCS. All columns STRING. Tolerates zero-match globs.",
+  tags: ["ocr_pipeline", "bronze"]
+}
+
+-- 1. Ensure the table exists so downstream models can always reference it.
+CREATE TABLE IF NOT EXISTS ${self()} (
+  row    STRING,
+  url    STRING,
+  reason STRING
+);
+
+-- 2. Clear the previous run's rows (replaces LOAD DATA OVERWRITE semantics).
+TRUNCATE TABLE ${self()};
+
+-- 3. Load rejected files (pre-download validation failures).
+BEGIN
+  LOAD DATA INTO ${self()}
+  (row STRING, url STRING, reason STRING)
+  FROM FILES (
+    format = 'CSV',
+    uris   = ['gs://your-landing-bucket/ocr_output/rejected_files_shard*.csv'],
+    skip_leading_rows = 1
+  );
+EXCEPTION WHEN ERROR THEN
+  IF @@error.message NOT LIKE '%No file can be matched with URI%'
+     AND @@error.message NOT LIKE '%Not found%' THEN
+    RAISE USING MESSAGE = @@error.message;
+  END IF;
+END;
+
+-- 4. Load extraction failures (Gemini processing failures).
+--    These have column "error" instead of "reason" — aliased here as reason.
+BEGIN
+  LOAD DATA INTO ${self()}
+  (row STRING, url STRING, reason STRING)
+  FROM FILES (
+    format = 'CSV',
+    uris   = ['gs://your-landing-bucket/ocr_output/extraction_failures_shard*.csv'],
+    skip_leading_rows = 1
+  );
+EXCEPTION WHEN ERROR THEN
+  IF @@error.message NOT LIKE '%No file can be matched with URI%'
+     AND @@error.message NOT LIKE '%Not found%' THEN
+    RAISE USING MESSAGE = @@error.message;
+  END IF;
+END;

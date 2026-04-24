@@ -1,0 +1,7 @@
+{
+  "defaultSchema": "silver",
+  "assertionSchema": "dataform_assertions",
+  "defaultDatabase": "your-gcp-project",
+  "defaultLocation": "europe-west2",
+  "warehouse": "bigquery"
+}
